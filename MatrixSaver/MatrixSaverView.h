@@ -14,9 +14,9 @@
 #define SPAWN_RATE 1
 #define SPEED_MAX 3
 #define FRAMES_PER_SEC 8 // 10.0
-#define COLS_MINI 25
-#define COLS_FULL 110
-#define MAX_TRAILS 120
+#define COLS_MINI 10
+#define COLS_FULL 100
+#define MAX_TRAILS 50
 #define SWAP_CHANCE 20
 
 @interface Trail : NSObject 

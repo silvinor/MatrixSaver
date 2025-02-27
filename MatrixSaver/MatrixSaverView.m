@@ -6,6 +6,8 @@
 #import "MatrixSaverView.h"
 #import <CoreText/CoreText.h>
 
+#undef DEBUG
+
 /// Define static constant
 static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#／/\"-一―.：～";
 
@@ -18,9 +20,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 @property(nonatomic, assign) CGFloat offsX;  // X offset
 @property(nonatomic, assign) CGFloat offsY;  // Y offset
 @property(nonatomic, strong) NSFont *font;   // Loaded font
-
 @property(nonatomic, strong) NSString *content; // Holds the content of `content.md`
-
 @property(nonatomic, assign) NSUInteger trailTimer; // Holds the loop count
 
 // Private methods
@@ -49,11 +49,15 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 - (NSUInteger)collisionDetection:(Trail *)trail;
 - (void)startNewTrail:(NSUInteger)length;
 - (void)updateTrail:(NSUInteger)nTrail;
-/* - (void)debugDumpScreen; */
-/* - (void)debugTextXY:(NSColor *)color 
+
+#ifdef DEBUG
+- (void)debugDumpScreen;
+- (void)debugDumpScreen2;
+- (void)debugTextXY:(NSColor *)color
                   x:(CGFloat)x 
                   y:(CGFloat)y 
-         withFormat:(NSString *)format, ...; */
+         withFormat:(NSString *)format, ...;
+#endif
 @end
 
 @implementation Trail
@@ -372,12 +376,12 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // No available trail slot
   if (!newTrail) { return; } 
 
-  NSUInteger maxTries = 3;
-  for (NSUInteger attempt = 0; attempt < maxTries; attempt++) {
+  newTrail.speed = arc4random_uniform(SPEED_MAX) + 1;
+  newTrail.rowsDrawn = 0; // Start with no rows drawn, MUST set for collision detection
 
+  NSUInteger maxTries = 5;
+  for (NSUInteger attempt = 0; attempt < maxTries; attempt++) {
     newTrail.column = arc4random_uniform( (uint32_t)[self maxWidth] );
-    newTrail.speed = arc4random_uniform(SPEED_MAX) + 1;
-    newTrail.rowsDrawn = 0; // Start with no rows drawn, MUST set for collision detection
 
     if (0 == [self collisionDetection:newTrail]) {
       newTrail.length = (length / 2) + arc4random_uniform((uint32_t)((length / 2) + 1));
@@ -389,7 +393,8 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   }
 }
 
-/* - (void)debugDumpScreen {
+#ifdef DEBUG
+- (void)debugDumpScreen {
   NSRect rect = NSMakeRect(0, 0, self.width, self.height);
   [[NSColor colorWithRed:0.3 green:0.3 blue:0.3 alpha:1.0] setFill]; // NOT BLACK !!
   NSRectFill(rect);
@@ -420,9 +425,49 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
       }
     }
   }
-} */
+}
+#endif
 
-/* - (void)debugTextXY:(NSColor *)color 
+#ifdef DEBUG
+- (void)debugDumpScreen2 {
+  NSUInteger rows = [self maxHeight];
+  NSUInteger cols = [self maxWidth];
+
+  NSString *s;
+
+  CGFloat sz = self.font.pointSize;
+  s = [NSString stringWithFormat:@"%f", sz];
+  [self writeCharXYC:s
+                   x:3
+                   y:3
+                   c:[NSColor whiteColor]];
+  
+  // over the top
+  for (NSUInteger x = 0; x < cols; x++) {
+    s = [NSString stringWithFormat:@"%lu", (x % 100) / 10];
+    [self writeCharXYC:s
+                     x:x
+                     y:0
+                     c:[NSColor redColor]];
+    s = [NSString stringWithFormat:@"%lu", x % 10];
+    [self writeCharXYC:s
+                     x:x
+                     y:1
+                     c:[NSColor redColor]];
+  }
+  // down the side
+  for (NSUInteger y = 0; y < rows; y++) {
+    s = [NSString stringWithFormat:@"%lu", y % 10];
+    [self writeCharXYC:s
+                     x:0
+                     y:y
+                     c:[NSColor redColor]];
+  }
+}
+#endif
+
+#ifdef DEBUG
+- (void)debugTextXY:(NSColor *)color
                   x:(CGFloat)x 
                   y:(CGFloat)y 
          withFormat:(NSString *)format, ... {
@@ -452,7 +497,8 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 
   // Draw the text at the computed position
   [formattedString drawAtPoint:NSMakePoint(x, y) withAttributes:attributes];
-} */
+}
+#endif
 
 /** ----------------------------------------
  * Main work horse!!
@@ -483,7 +529,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
       alpha:1.0];
     } else {
       CGFloat a = 1.0;
-      if (i >= len - 4) { a = 0.2 * (len - i); }  // dim last 4 chars
+      if (i >= len - 6) { a = 0.15 * (len - i); }  // dim last 6 chars
       c = [NSColor colorWithRed:(0x25 / 255.0) green:(0xFC / 255.0) blue:(0xB3 / 255.0)  // green from icon
       alpha:a];
     }
@@ -549,26 +595,34 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     return;
   }
 
+  #ifdef DEBUG
   /* [self debugDumpScreen]; */
+  [self debugDumpScreen2];
 
   /* [self debugTextXY:[NSColor redColor]
                     x:20
                     y:20
            withFormat:@"MaxHeight = %3d", self.maxHeight]; */
+  #endif
 
   for (NSUInteger i = 0; i < self.trails.count; i++) {
-
-    /*
-    // vvvvvvvvvvvvv TODO : DEBUG vvvvvvvvvvvvvvvvv 
+    #ifdef DEBUG
+    // vvvvvvvvvvvvv TODO : DEBUG vvvvvvvvvvvvvvvvv
     Trail *debug = self.trails[i];
+    NSUInteger xx = (debug.column * self.charW);
+    NSUInteger yy = (debug.rowsDrawn * self.charH);
+    if (!debug.active) {
+      xx = 20;
+      yy = ceil( self.height / MAX_TRAILS ) * i;
+    }
     [self debugTextXY:[NSColor redColor]
-                    x:20
-                    y:(((1 + debug.n) * self.charH) + 20)
-           withFormat:@"Trail %3d col=%3d rows=%3d len=%2d spd=%1d act=%1d str=%@", 
+                    x:xx
+                    y:yy
+           withFormat:@"Trail %3d col=%3d rows=%3d len=%2d spd=%1d act=%1d str=%@",
              debug.n, debug.column, debug.rowsDrawn, debug.length, debug.speed, debug.active, debug.content];
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    */
-
+    #endif
+    
     if (self.trails[i].active) {
       [self updateTrail:i]; // Call updateTrail if active
     }
