@@ -51,7 +51,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 - (void)updateTrail:(NSUInteger)nTrail;
 
 #ifdef DEBUG
-- (void)debugDumpScreen;
+- (void)debugDumpScreen1;
 - (void)debugDumpScreen2;
 - (void)debugTextXY:(NSColor *)color
                   x:(CGFloat)x 
@@ -102,35 +102,30 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     CFRelease(errorDescription);
   }
 
+  CGFloat desiredFontSize = [self isMiniPreview] ? FONT_SIZE_MINI : FONT_SIZE_FULL;
+
   // ✅ Create font descriptor with font name and weight
-  NSFontDescriptor *fontDescriptor = [[NSFontDescriptor fontDescriptorWithName:@FONT_NAME size:12.0]
+  NSFontDescriptor *fontDescriptor = [[NSFontDescriptor fontDescriptorWithName:@FONT_NAME size:desiredFontSize]
     fontDescriptorByAddingAttributes:@{
       NSFontWeightTrait: @(FONT_WEIGHT / 1000.0) // Convert weight to trait format
     }];
 
   // ✅ Create the font using the descriptor
-  self.font = [NSFont fontWithDescriptor:fontDescriptor size:12.0];
+  self.font = [NSFont fontWithDescriptor:fontDescriptor size:desiredFontSize];
 
   // ✅ Fallback to system monospace font if font is not found
   if (!self.font) {
     // NSLog(@"MatrixSaverView: Failed to load font '%s', using system monospace", FONT_NAME);
-    self.font = [NSFont monospacedSystemFontOfSize:12.0 weight:NSFontWeightRegular];
+    self.font = [NSFont monospacedSystemFontOfSize:desiredFontSize weight:NSFontWeightRegular];
   }
 
   // Get initial text size with default font size
   NSDictionary *attributes = @{NSFontAttributeName : self.font};
   NSSize chr = [@"五" sizeWithAttributes:attributes];
 
-  // ✅ Calculate target font size based on screen width
-  CGFloat divisor = [self isMiniPreview] ? COLS_MINI : COLS_FULL;
-  CGFloat targetWidth = self.width / divisor;
-  CGFloat scaleFactor = round(targetWidth / chr.width);
-  CGFloat finalFontSize = round(self.font.pointSize * scaleFactor);
-  // NSLog(@"MatrixSaverView: FontSize: %.2f", finalFontSize);
-
-  // ✅ Update font with the final size
-  fontDescriptor = [fontDescriptor fontDescriptorWithSize:finalFontSize];
-  self.font = [NSFont fontWithDescriptor:fontDescriptor size:finalFontSize];
+  // // ✅ Update font with the final size
+  // fontDescriptor = [fontDescriptor fontDescriptorWithSize:desiredFontSize];
+  // self.font = [NSFont fontWithDescriptor:fontDescriptor size:desiredFontSize];
 
   // ✅ Calculate character size with final font
   attributes = @{NSFontAttributeName : self.font};
@@ -394,7 +389,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 }
 
 #ifdef DEBUG
-- (void)debugDumpScreen {
+- (void)debugDumpScreen1 {
   NSRect rect = NSMakeRect(0, 0, self.width, self.height);
   [[NSColor colorWithRed:0.3 green:0.3 blue:0.3 alpha:1.0] setFill]; // NOT BLACK !!
   NSRectFill(rect);
@@ -440,7 +435,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   [self writeCharXYC:s
                    x:3
                    y:3
-                   c:[NSColor whiteColor]];
+                   c:[NSColor cyanColor]];
   
   // over the top
   for (NSUInteger x = 0; x < cols; x++) {
@@ -448,20 +443,20 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     [self writeCharXYC:s
                      x:x
                      y:0
-                     c:[NSColor redColor]];
+                     c:[NSColor blueColor]];
     s = [NSString stringWithFormat:@"%lu", x % 10];
     [self writeCharXYC:s
                      x:x
                      y:1
-                     c:[NSColor redColor]];
+                     c:[NSColor blueColor]];
   }
   // down the side
-  for (NSUInteger y = 0; y < rows; y++) {
+  for (NSUInteger y = 1; y < rows; y++) {
     s = [NSString stringWithFormat:@"%lu", y % 10];
     [self writeCharXYC:s
                      x:0
                      y:y
-                     c:[NSColor redColor]];
+                     c:[NSColor blueColor]];
   }
 }
 #endif
@@ -596,7 +591,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   }
 
   #ifdef DEBUG
-  /* [self debugDumpScreen]; */
+  /* [self debugDumpScreen1]; */
   [self debugDumpScreen2];
 
   /* [self debugTextXY:[NSColor redColor]
@@ -611,11 +606,13 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     Trail *debug = self.trails[i];
     NSUInteger xx = (debug.column * self.charW);
     NSUInteger yy = (debug.rowsDrawn * self.charH);
+    NSColor *c = [NSColor redColor];
     if (!debug.active) {
       xx = 20;
       yy = ceil( self.height / MAX_TRAILS ) * i;
+      c = [NSColor yellowColor];
     }
-    [self debugTextXY:[NSColor redColor]
+    [self debugTextXY:c
                     x:xx
                     y:yy
            withFormat:@"Trail %3d col=%3d rows=%3d len=%2d spd=%1d act=%1d str=%@",
@@ -635,7 +632,11 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // NSLog(@"MatrixSaverView: animateOneFrame");
 
   if (self.trailTimer % SPAWN_RATE == 0) {
-    [self startNewTrail:TRAIL_LENGTH];
+    NSUInteger loopC = arc4random_uniform(SPAWN_COUNT) + 1;  // spawn between 1 and 3 trails
+    NSUInteger trailLen = [self isMiniPreview] ? 5 : TRAIL_LENGTH;
+    for (NSUInteger i = 0; i < loopC; i++) {
+      [self startNewTrail:trailLen];
+    }
   }
 
   self.trailTimer += 1;
