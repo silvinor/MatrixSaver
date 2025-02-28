@@ -12,11 +12,12 @@
 #define FONT_WEIGHT 700 // font weight to load / set self.font to
 #define TRAIL_LENGTH 24
 #define SPAWN_RATE 1
+#define SPAWN_COUNT 3
 #define SPEED_MAX 3
-#define FRAMES_PER_SEC 8 // 10.0
-#define COLS_MINI 10
-#define COLS_FULL 100
-#define MAX_TRAILS 50
+#define FRAMES_PER_SEC 8.0
+#define FONT_SIZE_MINI 8
+#define FONT_SIZE_FULL 18
+#define MAX_TRAILS 120
 #define SWAP_CHANCE 20
 
 @interface Trail : NSObject 
