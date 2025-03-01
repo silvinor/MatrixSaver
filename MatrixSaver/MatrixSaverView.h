@@ -3,24 +3,24 @@
 //  MatrixSaver
 //
 
-#import <ScreenSaver/ScreenSaver.h>
 #import <Cocoa/Cocoa.h>
+#import <ScreenSaver/ScreenSaver.h>
 
 #define GAP 2
 #define FONT_NAME "M PLUS 1 Code" // this the font name
-#define FONT_FILE_NAME "font.ttf" // the font file to load file 
-#define FONT_WEIGHT 700 // font weight to load / set self.font to
+#define FONT_FILE_NAME "font.ttf" // the font file to load file
+#define FONT_WEIGHT 700           // font weight to load / set self.font to
 #define TRAIL_LENGTH 24
 #define SPAWN_RATE 1
 #define SPAWN_COUNT 3
 #define SPEED_MAX 3
 #define FRAMES_PER_SEC 8.0
-#define FONT_SIZE_MINI 8
+#define FONT_SIZE_MINI 6
 #define FONT_SIZE_FULL 18
 #define MAX_TRAILS 120
 #define SWAP_CHANCE 20
 
-@interface Trail : NSObject 
+@interface Trail : NSObject
   @property (nonatomic, assign) NSInteger n;         // Item index, only used in debugging
   @property (nonatomic, assign) NSInteger column;    // Column where the trail is active
   @property (nonatomic, assign) NSInteger rowsDrawn; // Number of rows drawn so far
@@ -31,6 +31,6 @@
 @end
 
 @interface MatrixSaverView : ScreenSaverView
-  @property (nonatomic, strong) NSMutableArray<Trail *> *trails;  // Array of trails
-  @property (nonatomic, assign) BOOL isRunning;             // Controls animation
+  @property (nonatomic, strong) NSMutableArray<Trail *> *trails; // Array of trails
+  @property (nonatomic, assign) BOOL isRunning;                  // Controls animation
 @end

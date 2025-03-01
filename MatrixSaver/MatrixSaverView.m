@@ -54,8 +54,8 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 - (void)debugDumpScreen1;
 - (void)debugDumpScreen2;
 - (void)debugTextXY:(NSColor *)color
-                  x:(CGFloat)x 
-                  y:(CGFloat)y 
+                  x:(CGFloat)x
+                  y:(CGFloat)y
          withFormat:(NSString *)format, ...;
 #endif
 @end
@@ -276,7 +276,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   NSInteger wO = round(((self.charW - GAP) - z.width) / 2);
 
   CGFloat adjustedX = x * self.charW;
-  CGFloat adjustedY = y * self.charH;  
+  CGFloat adjustedY = y * self.charH;
 
   adjustedX += (self.offsX + wO);
   // adjustedY -= (self.offsY + GAP);
@@ -295,7 +295,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
                       g:(CGFloat)g
                       b:(CGFloat)b
                       a:(CGFloat)a {
-    
+
   if (!self.font || s.length == 0) {
     // NSLog(@"MatrixSaverView: Font not set or invalid character.");
     return;
@@ -322,9 +322,8 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // Generate a random substring of `length` characters
   NSMutableString *trailString = [NSMutableString stringWithCapacity:length];
   for (NSUInteger i = 0; i < length; i++) {
-    NSUInteger randomIndex = arc4random_uniform((uint32_t)self.content.length);
-    NSString *randomChar =
-      [self.content substringWithRange:NSMakeRange(randomIndex, 1)];
+    NSUInteger randomIndex = (NSUInteger)SSRandomIntBetween(1, (int)self.content.length) - 1;
+    NSString *randomChar = [self.content substringWithRange:NSMakeRange(randomIndex, 1)];
     [trailString appendString:randomChar];
   }
 
@@ -336,11 +335,11 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   for (NSUInteger i = 0; i < MAX_TRAILS; i++) {
     Trail *victim = self.trails[i];
     if (victim && victim.active && (victim.column == trail.column)) {
-      
+
       NSUInteger trailNextRow = trail.rowsDrawn + trail.speed;
       NSUInteger victimEndRow = victim.rowsDrawn - victim.length;  // bottom of victim trail
       NSUInteger victimStartRow = victim.rowsDrawn; // top of victim trail
-      
+
       if (
         // ✅ Case 1: New trail is being created and starts in the middle of an existing trail
         ((trail.rowsDrawn == 0) && (victimStartRow >= 0) && (trail.rowsDrawn <= victimEndRow))
@@ -369,17 +368,17 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   }
 
   // No available trail slot
-  if (!newTrail) { return; } 
+  if (!newTrail) { return; }
 
-  newTrail.speed = arc4random_uniform(SPEED_MAX) + 1;
+  newTrail.speed = SSRandomIntBetween(1, SPEED_MAX);
   newTrail.rowsDrawn = 0; // Start with no rows drawn, MUST set for collision detection
 
   NSUInteger maxTries = 5;
   for (NSUInteger attempt = 0; attempt < maxTries; attempt++) {
-    newTrail.column = arc4random_uniform( (uint32_t)[self maxWidth] );
+    newTrail.column = (NSInteger)SSRandomIntBetween(0, (int)[self maxWidth]);
 
     if (0 == [self collisionDetection:newTrail]) {
-      newTrail.length = (length / 2) + arc4random_uniform((uint32_t)((length / 2) + 1));
+      newTrail.length = (NSInteger)SSRandomIntBetween((int)((length / 2) + 1), (int)length);
       newTrail.content = [self generateTrailContentWithLength:newTrail.length];
       // NSLog(@"MatrixSaverView: Content = %s", newTrail.content);
       newTrail.active = YES;
@@ -402,7 +401,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     for (NSUInteger x = 0; x < cols; x++) {
       if ((x == y) && (x < 10)) {
         NSString *tempChar = [NSString stringWithFormat:@"%ld", (long)x]; // If `x` is an integer
-        [self writeCharXYRGBA:tempChar 
+        [self writeCharXYRGBA:tempChar
                             x:x
                             y:y
                             r:0.0
@@ -436,7 +435,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
                    x:3
                    y:3
                    c:[NSColor cyanColor]];
-  
+
   // over the top
   for (NSUInteger x = 0; x < cols; x++) {
     s = [NSString stringWithFormat:@"%lu", (x % 100) / 10];
@@ -463,8 +462,8 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 
 #ifdef DEBUG
 - (void)debugTextXY:(NSColor *)color
-                  x:(CGFloat)x 
-                  y:(CGFloat)y 
+                  x:(CGFloat)x
+                  y:(CGFloat)y
          withFormat:(NSString *)format, ... {
   if (!format || !color) { return; }
 
@@ -473,7 +472,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // Process variable arguments (for formatted string)
   va_list args;
   va_start(args, format);
-  if ([format containsString:@"%"]) { 
+  if ([format containsString:@"%"]) {
     formattedString = [[NSString alloc] initWithFormat:format arguments:args];
   } else {
     formattedString = format;
@@ -512,7 +511,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 
     NSInteger yy = trail.rowsDrawn - i;
     // not visible, so don't draw it
-    if (yy < 0 || yy > [self maxHeight]) { continue; }  // todo : use `break` for invisible tails 
+    if (yy < 0 || yy > [self maxHeight]) { continue; }  // todo : use `break` for invisible tails
 
     // Extract character
     NSString *s = [trail.content substringWithRange:NSMakeRange(i, 1)];
@@ -536,7 +535,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   }
 
   /* 1 in SWAP_CHANCE chance of resetting `trail.content` */
-  if (arc4random_uniform(SWAP_CHANCE) == 0) {
+  if (SSRandomIntBetween(1, SWAP_CHANCE) == 1) {
     trail.content = [self generateTrailContentWithLength:trail.length];
     // NSLog(@"MatrixSaverView: Reset content for trail %lu", (unsigned long)nTrail);
   }
@@ -619,7 +618,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
              debug.n, debug.column, debug.rowsDrawn, debug.length, debug.speed, debug.active, debug.content];
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     #endif
-    
+
     if (self.trails[i].active) {
       [self updateTrail:i]; // Call updateTrail if active
     }
@@ -632,9 +631,9 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // NSLog(@"MatrixSaverView: animateOneFrame");
 
   if (self.trailTimer % SPAWN_RATE == 0) {
-    NSUInteger loopC = arc4random_uniform(SPAWN_COUNT) + 1;  // spawn between 1 and 3 trails
+    NSUInteger loopCount = SSRandomIntBetween(1, SPAWN_COUNT);  // spawn between 1 and 3 trails
     NSUInteger trailLen = [self isMiniPreview] ? 5 : TRAIL_LENGTH;
-    for (NSUInteger i = 0; i < loopC; i++) {
+    for (NSUInteger i = 0; i < loopCount; i++) {
       [self startNewTrail:trailLen];
     }
   }
