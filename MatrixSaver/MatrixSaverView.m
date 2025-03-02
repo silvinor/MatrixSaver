@@ -46,12 +46,13 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
                       a:(CGFloat)a;
 
 - (NSString *)generateTrailContentWithLength:(NSUInteger)length;
+- (NSString *)swapTrailContentIn:(NSString *)s;
 - (NSUInteger)collisionDetection:(Trail *)trail;
 - (void)startNewTrail:(NSUInteger)length;
 - (void)updateTrail:(NSUInteger)nTrail;
 
 #ifdef DEBUG
-- (void)debugDumpScreen1;
+// - (void)debugDumpScreen1;
 - (void)debugDumpScreen2;
 - (void)debugTextXY:(NSColor *)color
                   x:(CGFloat)x
@@ -104,16 +105,16 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
 
   CGFloat desiredFontSize = [self isMiniPreview] ? FONT_SIZE_MINI : FONT_SIZE_FULL;
 
-  // ✅ Create font descriptor with font name and weight
+  // Create font descriptor with font name and weight
   NSFontDescriptor *fontDescriptor = [[NSFontDescriptor fontDescriptorWithName:@FONT_NAME size:desiredFontSize]
     fontDescriptorByAddingAttributes:@{
       NSFontWeightTrait: @(FONT_WEIGHT / 1000.0) // Convert weight to trait format
     }];
 
-  // ✅ Create the font using the descriptor
+  // Create the font using the descriptor
   self.font = [NSFont fontWithDescriptor:fontDescriptor size:desiredFontSize];
 
-  // ✅ Fallback to system monospace font if font is not found
+  // Fallback to system monospace font if font is not found
   if (!self.font) {
     // NSLog(@"MatrixSaverView: Failed to load font '%s', using system monospace", FONT_NAME);
     self.font = [NSFont monospacedSystemFontOfSize:desiredFontSize weight:NSFontWeightRegular];
@@ -123,11 +124,11 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   NSDictionary *attributes = @{NSFontAttributeName : self.font};
   NSSize chr = [@"五" sizeWithAttributes:attributes];
 
-  // // ✅ Update font with the final size
+  // // Update font with the final size
   // fontDescriptor = [fontDescriptor fontDescriptorWithSize:desiredFontSize];
   // self.font = [NSFont fontWithDescriptor:fontDescriptor size:desiredFontSize];
 
-  // ✅ Calculate character size with final font
+  // Calculate character size with final font
   attributes = @{NSFontAttributeName : self.font};
   chr = [@"五" sizeWithAttributes:attributes];
   self.charW = ceil( chr.width ) + GAP;
@@ -137,7 +138,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // NSLog(@"MatrixSaverView: Char size: Width = %.2f, Height = %.2f (ascender: %.2f, descender: %.2f, leading: %.2f) vs. Height = %.2f",
   //       self.charW, self.charH, self.font.ascender, self.font.descender, self.font.leading, chr.height);
 
-  // ✅ Calculate offsets
+  // Calculate offsets
   CGFloat usedWidth = [self maxWidth] * self.charW;
   CGFloat usedHeight = [self maxHeight] * self.charH;
   // NSLog(@"MatrixSaverView: realW = %.2f, usedW = %.2f, cW = %.2f, .. realH = %.2f, usedH = %.2f, cH = %.2f", self.width, usedWidth, self.charW, self.height, usedHeight, self.charH);
@@ -276,7 +277,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   NSInteger wO = round(((self.charW - GAP) - z.width) / 2);
 
   CGFloat adjustedX = x * self.charW;
-  CGFloat adjustedY = y * self.charH;
+  CGFloat adjustedY = y;
 
   adjustedX += (self.offsX + wO);
   // adjustedY -= (self.offsY + GAP);
@@ -330,21 +331,40 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   return [trailString copy]; // Return an immutable copy to ensure proper memory handling
 }
 
+- (NSString *)swapTrailContentIn:(NSString *)s {
+  if (!s || s.length < 1) { return s; }
+
+  NSMutableString *mutableS = [s mutableCopy];  // Convert NSString to NSMutableString
+  for (NSUInteger i = 0; i < s.length; i++) {
+    if (SSRandomIntBetween(1, CHAR_SWAP_RATIO) == 1) {
+      NSUInteger randomIndex = (NSUInteger)SSRandomIntBetween(1, (int)self.content.length) - 1;
+      NSString *randomChar = [self.content substringWithRange:NSMakeRange(randomIndex, 1)];
+
+      // Replace character at index 'i' with 'randomChar'
+      [mutableS replaceCharactersInRange:NSMakeRange(i, 1) withString:randomChar];
+    }
+  }
+  return [mutableS copy];  // Convert back to immutable NSString
+}
+
+/**
+ * @Return: 0 if no collinson detected, >0 will be the speed of the colliding trail
+ */
 - (NSUInteger)collisionDetection:(Trail *)trail {
   NSUInteger result = 0;
   for (NSUInteger i = 0; i < MAX_TRAILS; i++) {
     Trail *victim = self.trails[i];
     if (victim && victim.active && (victim.column == trail.column)) {
 
-      NSUInteger trailNextRow = trail.rowsDrawn + trail.speed;
-      NSUInteger victimEndRow = victim.rowsDrawn - victim.length;  // bottom of victim trail
-      NSUInteger victimStartRow = victim.rowsDrawn; // top of victim trail
+      NSUInteger trailNextRow = trail.atRow + (trail.length * self.charH) + trail.speed;
+      NSUInteger victimEndRow = victim.atRow - (victim.length * self.charH);  // back of victim trail
+      NSUInteger victimStartRow = victim.atRow; // front of victim trail
 
       if (
-        // ✅ Case 1: New trail is being created and starts in the middle of an existing trail
-        ((trail.rowsDrawn == 0) && (victimStartRow >= 0) && (trail.rowsDrawn <= victimEndRow))
+        // Case 1: New trail is being created and starts in the middle of an existing trail
+        ((trail.atRow == 0) && (victimStartRow >= 0) && (trail.atRow <= victimEndRow))
         ||
-        // ✅ Case 2: Trail is moving faster and might catch up
+        // Case 2: Trail is moving faster and might catch up
         ((trail.speed > victim.speed) && (trailNextRow >= victimEndRow))
       ) {
         if (result == 0 || victim.speed < result) {
@@ -370,8 +390,8 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   // No available trail slot
   if (!newTrail) { return; }
 
-  newTrail.speed = SSRandomIntBetween(1, SPEED_MAX);
-  newTrail.rowsDrawn = 0; // Start with no rows drawn, MUST set for collision detection
+  newTrail.speed = SSRandomIntBetween(SPEED_MIN * SPEED_MULTIPLIER, SPEED_MAX * SPEED_MULTIPLIER);
+  newTrail.atRow = 0;  // Start with no rows drawn, MUST set for collision detection
 
   NSUInteger maxTries = 5;
   for (NSUInteger attempt = 0; attempt < maxTries; attempt++) {
@@ -387,6 +407,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   }
 }
 
+/*
 #ifdef DEBUG
 - (void)debugDumpScreen1 {
   NSRect rect = NSMakeRect(0, 0, self.width, self.height);
@@ -421,6 +442,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   }
 }
 #endif
+*/
 
 #ifdef DEBUG
 - (void)debugDumpScreen2 {
@@ -430,10 +452,11 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   NSString *s;
 
   CGFloat sz = self.font.pointSize;
-  s = [NSString stringWithFormat:@"%f", sz];
+  s = [NSString stringWithFormat:@"Font.Size=%.0f, Char.Width=%.0f, Char.Height=%.0f, Screen.Width=%.0f, Screen.Height=%.0f",
+    sz, self.charW, self.charH, self.width, self.height];
   [self writeCharXYC:s
-                   x:3
-                   y:3
+                   x:20
+                   y:(3 * self.charH)
                    c:[NSColor cyanColor]];
 
   // over the top
@@ -446,7 +469,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     s = [NSString stringWithFormat:@"%lu", x % 10];
     [self writeCharXYC:s
                      x:x
-                     y:1
+                     y:self.charH
                      c:[NSColor blueColor]];
   }
   // down the side
@@ -454,7 +477,7 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     s = [NSString stringWithFormat:@"%lu", y % 10];
     [self writeCharXYC:s
                      x:0
-                     y:y
+                     y:(y * self.charH)
                      c:[NSColor blueColor]];
   }
 }
@@ -509,9 +532,11 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   for (NSUInteger i = 0; i < len; i++) {
     // if (i >= len) { break; }
 
-    NSInteger yy = trail.rowsDrawn - i;
+    NSInteger yy = trail.atRow - (i * self.charH);
+    // TODO 1 : updateTrail >> not visible
     // not visible, so don't draw it
-    if (yy < 0 || yy > [self maxHeight]) { continue; }  // todo : use `break` for invisible tails
+    // if (yy < 0) { continue; }
+    // if (yy > [self maxHeight]) { break; }
 
     // Extract character
     NSString *s = [trail.content substringWithRange:NSMakeRange(i, 1)];
@@ -534,9 +559,9 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
                      c:c];
   }
 
-  /* 1 in SWAP_CHANCE chance of resetting `trail.content` */
-  if (SSRandomIntBetween(1, SWAP_CHANCE) == 1) {
-    trail.content = [self generateTrailContentWithLength:trail.length];
+  /* 1 in CHAR_SWAP_CHANCE chance of resetting `trail.content` */
+  if (SSRandomIntBetween(1, CHAR_SWAP_CHANCE) == 1) {
+    trail.content = [self swapTrailContentIn:trail.content];
     // NSLog(@"MatrixSaverView: Reset content for trail %lu", (unsigned long)nTrail);
   }
 
@@ -545,11 +570,13 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
     trail.speed = collisionSpeed;
   }
 
-  trail.rowsDrawn += trail.speed;  // move it by 1 to 3 (speed dependant)
+  trail.atRow += trail.speed;
+  NSInteger tail = trail.atRow - (trail.length * self.charH);
 
-  if (trail.rowsDrawn > ([self maxHeight] + len)) {
-  //   // beyond printable area ... kill it
-     trail.active = NO;
+  // Moved beyond end
+  if (tail > self.height) {
+    // beyond printable area ... kill it
+    trail.active = NO;
   }
 }
 
@@ -600,24 +627,28 @@ static NSString *const kCharactersToRemove = @" \n\r\t>*|・。●（）()、#�
   #endif
 
   for (NSUInteger i = 0; i < self.trails.count; i++) {
+    /*
     #ifdef DEBUG
     // vvvvvvvvvvvvv TODO : DEBUG vvvvvvvvvvvvvvvvv
     Trail *debug = self.trails[i];
     NSUInteger xx = (debug.column * self.charW);
-    NSUInteger yy = (debug.rowsDrawn * self.charH);
+    NSUInteger yy = debug.atRow + self.charH;
     NSColor *c = [NSColor redColor];
     if (!debug.active) {
       xx = 20;
-      yy = ceil( self.height / MAX_TRAILS ) * i;
+      yy = ceil( self.height / MAX_TRAILS ) + (self.charH * i);
       c = [NSColor yellowColor];
     }
     [self debugTextXY:c
                     x:xx
                     y:yy
-           withFormat:@"Trail %3d col=%3d rows=%3d len=%2d spd=%1d act=%1d str=%@",
-             debug.n, debug.column, debug.rowsDrawn, debug.length, debug.speed, debug.active, debug.content];
+           withFormat:@"Trail=[%3d] col=%3d rows=%3d len=%2d spd=%1d act=%1d str=%@",
+             debug.n, debug.column, debug.atRow, debug.length, debug.speed, debug.active, debug.content];
+          ////  withFormat:@"Trail %3d col=%3d rows=%3d len=%2d spd=%1d act=%1d str=%@",
+          ////    debug.n, debug.column, debug.rowsDrawn, debug.length, debug.speed, debug.active, debug.content];
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     #endif
+    */
 
     if (self.trails[i].active) {
       [self updateTrail:i]; // Call updateTrail if active
